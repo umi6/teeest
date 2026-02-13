@@ -1,0 +1,60 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'my.tool'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+def toolLibDir = processingPath
+println "Looking for JARs in: ${toolLibDir}"
+
+dependencies {
+    // Processingのコアライブラリを全て読み込む
+    compileOnly fileTree(dir: processingPath, include: ['*.jar'])
+}
+
+// Java17を使用
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+jar {
+    archiveFileName = "${project.name}.jar"
+    
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// 2. Processingが認識する「tool」フォルダの形式に配置するタスク
+task dist(type: Copy) {
+    dependsOn jar
+    group = "processing"
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    def toolDest = layout.buildDirectory.dir("dist/${project.name}")
+    
+    from('src/main/resources') {
+        include 'tool.properties'
+    }
+
+    from(jar.archiveFile) {
+        into 'tool'
+    }
+
+    into toolDest
+}
+
+// 3. ローカルのProcessingに直接インストールするタスク
+task installTool(type: Copy) {
+    dependsOn dist
+    group = "processing"
+    
+    from layout.buildDirectory.dir("dist/${project.name}")
+    into file("${processingUserPath}/tools/${project.name}")
+}
