@@ -1,5 +1,6 @@
 plugins {
     id 'java-library'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'//追加
 }
 
 group = 'my.tool'
@@ -15,6 +16,7 @@ println "Looking for JARs in: ${toolLibDir}"
 dependencies {
     // Processingのコアライブラリを全て読み込む
     compileOnly fileTree(dir: processingPath, include: ['*.jar'])
+
     implementation 'com.github.javaparser:javaparser-symbol-solver-core:3.28.0'
 }
 
@@ -39,6 +41,10 @@ task dist(type: Copy) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     def toolDest = layout.buildDirectory.dir("dist/${project.name}")
+
+    from(configurations.runtimeClasspath) {
+        into 'tool/lib'
+    }
     
     from('src/main/resources') {
         include 'tool.properties'
@@ -48,7 +54,16 @@ task dist(type: Copy) {
         into 'tool'
     }
 
+    // Processing Tools load dependency jars from the tool folder (non-recursive).追加
+    from(configurations.runtimeClasspath) {
+        into 'tool'
+    }
+
     into toolDest
+}
+
+tasks.shadowJar {
+    archiveClassifier.set('')
 }
 
 // 3. ローカルのProcessingに直接インストールするタスク
